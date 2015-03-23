@@ -30,8 +30,11 @@ class Window(QtGui.QWidget):
 
     def add_node(self):
         label = self.line_label_node.text()
+        rect = self.nodeview.viewport().rect()
+        new_pos = self.nodeview.mapToScene(rect.width()*0.5, rect.height()*0.5)
         new_node = nodify.Node(label, 0, 0, 160, 90)
         new_node.set_color(QtGui.QColor(155, 60, 60, 255))
+        new_node.setPos(new_pos)
         self.nodescene.addItem(new_node)
 
 

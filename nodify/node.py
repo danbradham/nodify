@@ -28,6 +28,10 @@ class NodeViewer(QtGui.QGraphicsView):
         self.setTransformationAnchor(QtGui.QGraphicsView.NoAnchor)
         self.setResizeAnchor(QtGui.QGraphicsView.NoAnchor)
         self.setRubberBandSelectionMode(QtCore.Qt.IntersectsItemShape)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setSceneRect(0, 0, 320000, 320000)
+        self.centerOn(16000, 16000)
         self._last_pos = QtCore.QPoint(0, 0)
         self._drag_buttons = [QtCore.Qt.LeftButton]
         self._pan_buttons = [QtCore.Qt.LeftButton]
@@ -51,6 +55,11 @@ class NodeViewer(QtGui.QGraphicsView):
 
         :param factor: Amount to scale'''
 
+        rect = self.sceneRect()
+        transform = QtGui.QTransform.fromScale(factor, factor)
+        scaled = transform.mapRect(rect)
+        self.setSceneRect(scaled)
+
         transform = self.transform()
         transform.scale(factor, factor)
         self.setTransform(transform)
@@ -61,9 +70,7 @@ class NodeViewer(QtGui.QGraphicsView):
         :param x: Number of pixels in x
         :param y: Number of pixels in y'''
 
-        rect = self.scene().sceneRect()
-        rect.translate(x, y)
-        self.scene().setSceneRect(rect)
+        self.translate(-x, -y)
 
     def mouseMoveEvent(self, event):
 
@@ -233,7 +240,7 @@ class NodeSlot(QtGui.QGraphicsItem):
 
 class Node(QtGui.QGraphicsItem):
 
-    node_slots = [Side.TOP, Side.BOTTOM]
+    node_slots = [Side.LEFT, Side.TOP, Side.RIGHT, Side.BOTTOM]
 
     def __init__(self, label, x, y, w, h, label_color=None,
                  color=None, parent=None, scene=None):
