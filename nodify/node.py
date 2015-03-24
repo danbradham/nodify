@@ -36,6 +36,7 @@ class NodeViewer(QtGui.QGraphicsView):
         self._drag_buttons = [QtCore.Qt.LeftButton]
         self._pan_buttons = [QtCore.Qt.LeftButton]
         self._zoom_buttons = [QtCore.Qt.MiddleButton, QtCore.Qt.RightButton]
+        self._rel_scale = 1
 
     def mousePressEvent(self, event):
 
@@ -55,10 +56,11 @@ class NodeViewer(QtGui.QGraphicsView):
 
         :param factor: Amount to scale'''
 
-        rect = self.sceneRect()
-        transform = QtGui.QTransform.fromScale(factor, factor)
-        scaled = transform.mapRect(rect)
-        self.setSceneRect(scaled)
+        rel_scale = self._rel_scale * factor
+        if rel_scale < 0.2 or rel_scale > 8:
+            return
+
+        self._rel_scale = rel_scale
 
         transform = self.transform()
         transform.scale(factor, factor)
@@ -247,11 +249,11 @@ class Node(QtGui.QGraphicsItem):
 
         super(Node, self).__init__(parent, scene)
 
-        self.label = label
+        self._scaling = False
+        self._font = QtGui.QFont("Helvetica", 12)
+        self._label = label
         self.label_color = label_color or QtGui.QColor.fromRgb(255, 255, 255)
-        self.rect = QtCore.QRectF(x, y, w, h)
         self.color = color or QtGui.QColor.fromRgb(55, 55, 55)
-        self.slots = [NodeSlot(i, parent=self) for i in self.node_slots]
 
         self.setFlags(
             QtGui.QGraphicsItem.ItemIsMovable |
@@ -264,7 +266,9 @@ class Node(QtGui.QGraphicsItem):
             offset=QtCore.QPointF(0, 2),
             )
         self.setGraphicsEffect(self.drop_shadow)
-        self._scaling = False
+        self.set_bounds(self._label)
+        self.set_rect(x, y, w, h)
+        self.slots = [NodeSlot(i, parent=self) for i in self.node_slots]
 
     def update_children(self):
         for item in self.childItems():
@@ -315,10 +319,9 @@ class Node(QtGui.QGraphicsItem):
 
         pos = event.pos()
         v = pos - self.start_pos
-        self.rect = QtCore.QRectF(
-            self.rect.x(), self.rect.y(),
-            self.start_rect.width() + v.x(), self.start_rect.height() + v.y()
-        )
+        w = self.start_rect.width() + v.x()
+        h = self.start_rect.height() + v.y()
+        self.set_rect(self.rect.x(), self.rect.y(), w, h)
         self.update(self.rect)
         self.update_children()
 
@@ -328,6 +331,23 @@ class Node(QtGui.QGraphicsItem):
         '''Make sure we disable corner scaling after we release mouse.'''
         self.scaling = False
         super(Node, self).mouseReleaseEvent(event)
+
+    def set_rect(self, x, y, w, h):
+        if w < self._min_width:
+            w = self._min_width
+        if h < self._min_height:
+            h = self._min_height
+        self.rect = QtCore.QRectF(x, y, w, h)
+
+    def set_bounds(self, text):
+        fm = QtGui.QFontMetrics(self._font)
+        self._min_width = fm.width(text) + 48
+        self._min_height = fm.height() + 24
+
+    def set_label(self, text):
+        self._label = text
+        self.set_bounds(text)
+        self.update()
 
     def set_label_color(self, color):
         self.label_color = color
@@ -344,8 +364,9 @@ class Node(QtGui.QGraphicsItem):
         painter.fillRect(
             self.rect,
             self.color if not self.isSelected() else self.color.lighter(120))
+        painter.setFont(self._font)
         painter.setPen(self.label_color)
-        painter.drawText(self.rect, QtCore.Qt.AlignCenter, self.label)
+        painter.drawText(self.rect, QtCore.Qt.AlignCenter, self._label)
 
         w = self.rect.width()
         h = self.rect.height()
