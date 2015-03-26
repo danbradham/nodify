@@ -1,14 +1,11 @@
 '''
 node
 ====
-
-Curve Connection Item
-Node Item
-Node Graph Scene
+QGraphicItem subclass.
 '''
 
-import math
 from PySide import QtCore, QtGui
+from .slot import Slot
 
 
 class Side(object):
@@ -18,226 +15,6 @@ class Side(object):
     TOP = 1
     RIGHT = 2
     BOTTOM = 3
-
-
-class NodeViewer(QtGui.QGraphicsView):
-
-    def __init__(self, *args, **kwargs):
-        super(NodeViewer, self).__init__(*args, **kwargs)
-        self._drag_mod = QtCore.Qt.AltModifier
-        self.setTransformationAnchor(QtGui.QGraphicsView.NoAnchor)
-        self.setResizeAnchor(QtGui.QGraphicsView.NoAnchor)
-        self.setRubberBandSelectionMode(QtCore.Qt.IntersectsItemShape)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setSceneRect(0, 0, 320000, 320000)
-        self.centerOn(16000, 16000)
-        self._last_pos = QtCore.QPoint(0, 0)
-        self._drag_buttons = [QtCore.Qt.LeftButton]
-        self._pan_buttons = [QtCore.Qt.LeftButton]
-        self._zoom_buttons = [QtCore.Qt.MiddleButton, QtCore.Qt.RightButton]
-        self._rel_scale = 1
-
-    def mousePressEvent(self, event):
-
-        m = event.modifiers()
-        b = event.buttons()
-
-        if m == self._drag_mod or not b in self._drag_buttons:
-            self.setDragMode(QtGui.QGraphicsView.NoDrag)
-        else:
-            self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
-        self._last_pos = self._anchor_pos = event.pos()
-
-        super(NodeViewer, self).mousePressEvent(event)
-
-    def zoom(self, factor):
-        '''Zoom View
-
-        :param factor: Amount to scale'''
-
-        rel_scale = self._rel_scale * factor
-        if rel_scale < 0.2 or rel_scale > 8:
-            return
-
-        self._rel_scale = rel_scale
-
-        transform = self.transform()
-        transform.scale(factor, factor)
-        self.setTransform(transform)
-
-    def pan(self, x, y):
-        '''Pan View
-
-        :param x: Number of pixels in x
-        :param y: Number of pixels in y'''
-
-        self.translate(-x, -y)
-
-    def mouseMoveEvent(self, event):
-
-        if not event.modifiers() == QtCore.Qt.AltModifier:
-            super(NodeViewer, self).mouseMoveEvent(event)
-            return
-
-        b = event.buttons()
-        pos = event.pos()
-        delta = pos - self._last_pos
-
-        if b in self._pan_buttons:
-            delta /= self.transform().m11()
-            self.pan(-delta.x(), -delta.y())
-
-        elif b in self._zoom_buttons:
-            old_pos = self.mapToScene(self._anchor_pos)
-
-            step = 0.02 * max(math.sqrt(delta.x() ** 2 + delta.y() ** 2), 1.0)
-            if delta.x() < 0 or -delta.y() < 0:
-                step *= -1
-            factor = 1 + step
-            self.zoom(factor) # Zoom
-
-            delta = self.mapToScene(self._anchor_pos) - old_pos
-            self.pan(-delta.x(), -delta.y()) # Pan to center on mouse pivot
-
-        self._last_pos = pos
-
-    def mouseReleaseEvent(self, event):
-
-        if event.modifiers() == self._drag_mod:
-            self.setDragMode(QtGui.QGraphicsView.NoDrag)
-        else:
-            self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
-
-        super(NodeViewer, self).mouseReleaseEvent(event)
-
-
-class NodeScene(QtGui.QGraphicsScene):
-
-    def __init__(self, color=None, parent=None):
-        super(NodeScene, self).__init__(parent)
-        self.set_color(color or QtGui.QColor.fromRgb(45, 45, 45))
-
-    def set_color(self, color):
-        self.color = color
-        brush = QtGui.QBrush(self.color, QtCore.Qt.SolidPattern)
-        self.setBackgroundBrush(brush)
-
-
-class NodeConnection(QtGui.QGraphicsPathItem):
-
-
-    def __init__(self, parent_a, parent_b=None, w=2, color=None):
-        super(NodeSlot, self).__init__()
-
-        self.parent_a = parent_a
-        self.parent_b = parent_b
-
-    def boundingBox(self):
-        pass
-
-    def paint(self):
-        pass
-
-
-class NodeSlot(QtGui.QGraphicsItem):
-    '''Input/Output slot graphic for a Node GraphicsItem.
-
-    :param side: Side that :class:`NodeSlot` belongs to pass :class:`Side` enum
-    :param parent: parent :class:`Node`
-    '''
-
-    def __init__(self, side, w=14, h=14, color=None, parent=None):
-        super(NodeSlot, self).__init__(parent)
-
-        self.side = side
-        self.width = w
-        self.height = h
-        self.polygon = self._poly()
-        self.color = color or QtGui.QColor.fromRgb(255, 255, 255, 255)
-        self.parent = parent
-        self.connected = False
-
-        self.reposition()
-
-    def reposition(self):
-        pw = self.parent.rect.width()
-        ph = self.parent.rect.height()
-        if self.side == Side.LEFT:
-            offset = QtCore.QPointF(0, ph * 0.5)
-        elif self.side == Side.TOP:
-            offset = QtCore.QPointF(pw * 0.5, 0)
-        elif self.side == Side.RIGHT:
-            offset = QtCore.QPointF(pw, ph * 0.5)
-        else:
-            offset = QtCore.QPointF(pw * 0.5, ph)
-
-        self.setPos(offset)
-
-    def set_color(self, color):
-        self.color = color
-        self.update()
-
-    def set_size(self, w, h):
-        self.width = width
-        self.height = height
-        self.polygon = self._poly()
-        self.update()
-
-    def l_pnts(self):
-        '''QPoints for left side'''
-        pnt_a = QtCore.QPointF(0, -self.height * 0.5)
-        pnt_b = QtCore.QPointF(0, self.height * 0.5)
-        pnt_c = QtCore.QPointF(self.width * 0.5, 0)
-        return pnt_a, pnt_b, pnt_c
-
-    def t_pnts(self):
-        '''QPoints for top side'''
-        pnt_a = QtCore.QPointF(-self.width * 0.5, 0)
-        pnt_b = QtCore.QPointF(self.width * 0.5, 0)
-        pnt_c = QtCore.QPointF(0, self.height * 0.5)
-        return pnt_a, pnt_b, pnt_c
-
-    def r_pnts(self):
-        '''QPoints for right side'''
-        pnt_a = QtCore.QPointF(0, -self.height * 0.5)
-        pnt_b = QtCore.QPointF(0, self.height * 0.5)
-        pnt_c = QtCore.QPointF(-self.width * 0.5, 0)
-        return pnt_a, pnt_b, pnt_c
-
-    def b_pnts(self):
-        '''QPoints for bottom side'''
-        pnt_a = QtCore.QPointF(-self.width * 0.5, 0)
-        pnt_b = QtCore.QPointF(self.width * 0.5, 0)
-        pnt_c = QtCore.QPointF(0, -self.height * 0.5)
-        return pnt_a, pnt_b, pnt_c
-
-    def _poly(self):
-        pnt_a, pnt_b, pnt_c = (
-            self.l_pnts,
-            self.t_pnts,
-            self.r_pnts,
-            self.b_pnts
-            )[self.side]()
-
-        polygon = QtGui.QPolygonF()
-        polygon.append(pnt_a)
-        polygon.append(pnt_b)
-        polygon.append(pnt_c)
-        polygon.append(pnt_a)
-        return polygon
-
-    def boundingRect(self):
-        return self.polygon.boundingRect()
-
-    def paint(self, painter, option, widget):
-        path = QtGui.QPainterPath()
-        path.addPolygon(self.polygon)
-        if self.connected:
-            painter.fillPath(path, self.color)
-        else:
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Overlay)
-            painter.fillPath(path, self.color.darker(120))
 
 
 class Node(QtGui.QGraphicsItem):
@@ -268,7 +45,7 @@ class Node(QtGui.QGraphicsItem):
         self.setGraphicsEffect(self.drop_shadow)
         self.set_bounds(self._label)
         self.set_rect(x, y, w, h)
-        self.slots = [NodeSlot(i, parent=self) for i in self.node_slots]
+        self.slots = [Slot(i, parent=self) for i in self.node_slots]
 
     def update_children(self):
         for item in self.childItems():

@@ -20,22 +20,22 @@ class Window(QtGui.QWidget):
         self.button_add_node = QtGui.QPushButton('Add Node')
         self.button_add_node.clicked.connect(self.add_node)
 
-        self.nodescene =  nodify.NodeScene()
-        self.nodeview = nodify.NodeViewer()
-        self.nodeview.setScene(self.nodescene)
+        self.scene =  nodify.Scene()
+        self.view = nodify.View()
+        self.view.setScene(self.scene)
 
-        l.addWidget(self.nodeview, 0, 0, 3, 1)
+        l.addWidget(self.view, 0, 0, 3, 1)
         l.addWidget(self.line_label_node, 0, 1)
         l.addWidget(self.button_add_node, 1, 1)
 
     def add_node(self):
         label = self.line_label_node.text()
-        rect = self.nodeview.viewport().rect()
-        new_pos = self.nodeview.mapToScene(rect.width()*0.5, rect.height()*0.5)
+        rect = self.view.viewport().rect()
+        new_pos = self.view.mapToScene(rect.width()*0.5, rect.height()*0.5)
         new_node = nodify.Node(label, 0, 0, 160, 90)
         new_node.set_color(QtGui.QColor(155, 60, 60, 255))
         new_node.setPos(new_pos)
-        self.nodescene.addItem(new_node)
+        self.scene.addItem(new_node)
 
 
 def main():
