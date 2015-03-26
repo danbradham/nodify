@@ -11,3 +11,9 @@ class Scene(QtGui.QGraphicsScene):
         self.color = color
         brush = QtGui.QBrush(self.color, QtCore.Qt.SolidPattern)
         self.setBackgroundBrush(brush)
+
+    # def mousePressEvent(self, event):
+    #     item = self.itemAt(event.scenePos())
+    #     if item:
+    #         item.mousePressEvent(event)
+    #         event.accept()
