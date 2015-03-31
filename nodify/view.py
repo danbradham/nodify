@@ -26,6 +26,7 @@ class View(QtGui.QGraphicsView):
         self.setRubberBandSelectionMode(QtCore.Qt.IntersectsItemShape)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setRenderHint(QtGui.QPainter.Antialiasing)
 
         # Set a massive canvas for seemingly unlimited pan and zoom
         self.setSceneRect(0, 0, 32000, 32000)

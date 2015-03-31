@@ -5,7 +5,6 @@ QGraphicItem subclass.
 '''
 
 from PySide import QtCore, QtGui
-from .connection import MousePath
 
 
 class Sides(object):
@@ -40,23 +39,6 @@ class Slot(QtGui.QGraphicsItem):
         self.reposition()
 
         self.setAcceptDrops(True)
-        self._mouse_path = None
-
-    def mousePressEvent(self, event):
-        event.accept()
-        if not self._mouse_path:
-            self._mouse_path = MousePath(scene=self.scene())
-        super(Slot, self).mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        path = QtGui.QPainterPath(self.center())
-        path.lineTo(event.pos())
-        self._mouse_path.setPath(path)
-
-    def mouseReleaseEvent(self, event):
-        self.scene().removeItem(self._mouse_path)
-        self._mouse_path = None
-        super(Slot, self).mouseReleaseEvent(event)
 
     def dropEvent(self, event):
         print event
@@ -129,7 +111,7 @@ class Slot(QtGui.QGraphicsItem):
         return polygon
 
     def center(self):
-        return self.boundingRect().center()
+        return self.mapToScene(self.boundingRect().center())
 
     def boundingRect(self):
         return self.polygon.boundingRect()
@@ -262,7 +244,7 @@ class Node(QtGui.QGraphicsItem):
         self.update()
 
     def center(self):
-        return self.rect.center()
+        return self.mapToScene(self.rect.center())
 
     def boundingRect(self):
         return self.rect
