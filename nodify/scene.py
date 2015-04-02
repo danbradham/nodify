@@ -42,8 +42,15 @@ class Scene(QtGui.QGraphicsScene):
 
         if self._mouse_path:
             if isinstance(item, Slot):
-                Connection(self._mouse_path_slot, item, scene=self)
+                print 'Adding connection'
+                c = Connection(self._mouse_path_slot, item)
+                self.addItem(c)
+                self._mouse_path_slot.connect(item, c)
+                item.connect(self._mouse_path_slot, c)
+                self._mouse_path_slot.update()
+                item.update()
             self.removeItem(self._mouse_path)
             self._mouse_path = None
+            self._mouse_path_slot = None
 
         super(Scene, self).mouseReleaseEvent(event)

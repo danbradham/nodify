@@ -1,44 +1,42 @@
 from PySide import QtCore, QtGui
 
 
-class PathSolver(object):
-    '''Path Solvers create QPainterPaths from one object to another.'''
+def straight_solver(start, end):
+    '''Creates a PainterPath connecting two graphic items.'''
 
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-
-    def get_path(self):
-        '''Returns a QPainterPath from start graphic to end graphic.'''
+    path = QtGui.QPainterPath(start.center())
+    path.lineTo(end.center())
+    return path
 
 
-class StraightSolver(PathSolver):
-    '''PathSolver returning a straight path'''
+def cubic_solver(start, end):
+    start_point = start.center()
+    start_vect = QtGui.QVector2D(start_point - start.parent.center())
+    start_vect.normalize()
+    start_cv = QtGui.QVector2D(start_point) + start_vect * 80
+    cv1 = QtCore.QPointF(start_cv.x(), start_cv.y())
 
-    def get_path(self):
+    end_point = end.center()
+    end_vect = QtGui.QVector2D(end_point - end.parent.center())
+    end_vect.normalize()
+    end_cv = QtGui.QVector2D(end_point) + end_vect * 80
+    cv2 = QtCore.QPointF(end_cv.x(), end_cv.y())
 
-        start_pos = self.start.center()
-        end_pos = self.end.center()
-        path = QtGui.QPainterPath(start_pos)
-        path.lineTo(end_pos)
-        return path
-
-
-class CubicSolver(PathSolver):
-    '''PathSolver retuning a cubic curve path'''
-
-    def get_path(self):
-        pass
+    path = QtGui.QPainterPath(start_point)
+    path.cubicTo(cv1, cv2, end_point)
+    return path
 
 
 class Connection(QtGui.QGraphicsItem):
 
-
-    def __init__(self, start, end, path_solver=StraightSolver,
+    def __init__(self, start, end, path_solver=cubic_solver,
                  *args, **kwargs):
         super(Connection, self).__init__(*args, **kwargs)
 
-        self.path_solver = path_solver(start, end)
+        self.start = start
+        self.end = end
+        self.path_solver = path_solver
+        self.path = path_solver(start, end)
         self.pen = QtGui.QPen(
             QtCore.Qt.white,
             2,
@@ -54,12 +52,12 @@ class Connection(QtGui.QGraphicsItem):
         self.setGraphicsEffect(self.drop_shadow)
 
     def boundingRect(self):
-        return self.path_solver.get_path().boundingRect()
+        return self.path.boundingRect()
 
     def paint(self, painter, option, widget):
-        path = self.path_solver.get_path()
+        self.path = self.path_solver(self.start, self.end)
         painter.setPen(self.pen)
-        painter.drawPath(path)
+        painter.drawPath(self.path)
 
 
 class MousePath(QtGui.QGraphicsPathItem):

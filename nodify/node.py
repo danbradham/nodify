@@ -5,13 +5,14 @@ QGraphicItem subclass.
 '''
 
 from PySide import QtCore, QtGui
+from .connection import Connection
 
 
 class Sides(object):
     LEFT = 0
-    TOP = 1
+    UP = 1
     RIGHT = 2
-    BOTTOM = 3
+    DOWN = 3
 
     @staticmethod
     def iterate():
@@ -35,10 +36,15 @@ class Slot(QtGui.QGraphicsItem):
         self.polygon = self._poly()
         self.color = color or QtGui.QColor.fromRgb(255, 255, 255, 255)
         self.parent = parent
-        self.connected = False
+        self.connection = None
+        self.connection_item = None
         self.reposition()
 
         self.setAcceptDrops(True)
+
+    def connect(self, slot, connection):
+        self.connection = slot
+        self.connection_item = connection
 
     def dropEvent(self, event):
         print event
@@ -48,7 +54,7 @@ class Slot(QtGui.QGraphicsItem):
         ph = self.parent.rect.height()
         if self.side == Sides.LEFT:
             offset = QtCore.QPointF(0, ph * 0.5)
-        elif self.side == Sides.TOP:
+        elif self.side == Sides.UP:
             offset = QtCore.QPointF(pw * 0.5, 0)
         elif self.side == Sides.RIGHT:
             offset = QtCore.QPointF(pw, ph * 0.5)
@@ -75,7 +81,7 @@ class Slot(QtGui.QGraphicsItem):
         return pnt_a, pnt_b, pnt_c
 
     def t_pnts(self):
-        '''QPoints for top side'''
+        '''QPoints for up side'''
         pnt_a = QtCore.QPointF(-self.width * 0.5, 0)
         pnt_b = QtCore.QPointF(self.width * 0.5, 0)
         pnt_c = QtCore.QPointF(0, self.height * 0.5)
@@ -89,7 +95,7 @@ class Slot(QtGui.QGraphicsItem):
         return pnt_a, pnt_b, pnt_c
 
     def b_pnts(self):
-        '''QPoints for bottom side'''
+        '''QPoints for down side'''
         pnt_a = QtCore.QPointF(-self.width * 0.5, 0)
         pnt_b = QtCore.QPointF(self.width * 0.5, 0)
         pnt_c = QtCore.QPointF(0, -self.height * 0.5)
@@ -119,7 +125,7 @@ class Slot(QtGui.QGraphicsItem):
     def paint(self, painter, option, widget):
         path = QtGui.QPainterPath()
         path.addPolygon(self.polygon)
-        if self.connected:
+        if self.connection:
             painter.fillPath(path, self.color)
         else:
             painter.setCompositionMode(QtGui.QPainter.CompositionMode_Overlay)
@@ -128,11 +134,23 @@ class Slot(QtGui.QGraphicsItem):
 
 class Node(QtGui.QGraphicsItem):
 
+    flag_state = {
+        'default': (
+            QtGui.QGraphicsItem.ItemIsMovable |
+            QtGui.QGraphicsItem.ItemIsSelectable |
+            QtGui.QGraphicsItem.ItemIsFocusable |
+            QtGui.QGraphicsItem.ItemSendsScenePositionChanges),
+        'scaling': (
+            QtGui.QGraphicsItem.ItemIsSelectable |
+            QtGui.QGraphicsItem.ItemIsFocusable|
+            QtGui.QGraphicsItem.ItemSendsScenePositionChanges),
+    }
 
     def __init__(self, label, x, y, w, h, label_color=None,
                  color=None, parent=None, scene=None):
 
         super(Node, self).__init__(parent, scene)
+        self._slots = {}
 
         self._scaling = False
         self._font = QtGui.QFont("Helvetica", 12)
@@ -140,10 +158,7 @@ class Node(QtGui.QGraphicsItem):
         self.label_color = label_color or QtGui.QColor.fromRgb(255, 255, 255)
         self.color = color or QtGui.QColor.fromRgb(55, 55, 55)
 
-        self.setFlags(
-            QtGui.QGraphicsItem.ItemIsMovable |
-            QtGui.QGraphicsItem.ItemIsSelectable |
-            QtGui.QGraphicsItem.ItemIsFocusable)
+        self.setFlags(self.flag_state['default'])
         self.setHandlesChildEvents(False)
         self.drop_shadow = QtGui.QGraphicsDropShadowEffect(
             blurRadius=12,
@@ -153,12 +168,40 @@ class Node(QtGui.QGraphicsItem):
         self.setGraphicsEffect(self.drop_shadow)
         self.set_bounds(self._label)
         self.set_rect(x, y, w, h)
-        self.slots = [Slot(i, parent=self) for i in Sides.iterate()]
+
+        self.add_slot('left', 0)
+        self.add_slot('up', 1)
+        self.add_slot('right', 2)
+        self.add_slot('down', 3)
+
+    def __getattr__(self, name):
+        try:
+            return self._slots[name]
+        except KeyError:
+            raise AttributeError('Attribute {} does not exist'.format(name))
+
+    def add_slot(self, name, side):
+        slot = Slot(side, parent=self)
+        self._slots[name] = slot
+
+    def del_slot(self, name):
+        slot = self._slots.pop(name)
+        self.scene().removeItem(slot)
 
     def update_children(self):
         for item in self.childItems():
             if hasattr(item, 'reposition'):
                 item.reposition()
+
+    def update_slots(self):
+        for name, slot in self._slots.iteritems():
+            if slot.connection_item:
+                slot.connection_item.update()
+
+    def itemChange(self, change, value):
+        if change == QtGui.QGraphicsItem.ItemScenePositionHasChanged:
+            self.update_slots()
+        return super(Node, self).itemChange(change, value)
 
     @property
     def scaling(self):
@@ -168,14 +211,9 @@ class Node(QtGui.QGraphicsItem):
     def scaling(self, value):
         self._scaling = value
         if not self._scaling:
-            self.setFlags(
-                QtGui.QGraphicsItem.ItemIsMovable |
-                QtGui.QGraphicsItem.ItemIsSelectable |
-                QtGui.QGraphicsItem.ItemIsFocusable)
+            self.setFlags(self.flag_state['default'])
         else:
-            self.setFlags(
-                QtGui.QGraphicsItem.ItemIsSelectable |
-                QtGui.QGraphicsItem.ItemIsFocusable)
+            self.setFlags(self.flag_state['scaling'])
 
     def mousePressEvent(self, event):
         event.accept()
@@ -210,6 +248,7 @@ class Node(QtGui.QGraphicsItem):
         self.set_rect(self.rect.x(), self.rect.y(), w, h)
         self.update(self.rect)
         self.update_children()
+        self.update_slots()
 
         super(Node, self).mouseMoveEvent(event)
 
