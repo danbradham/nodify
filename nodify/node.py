@@ -14,11 +14,6 @@ class Sides(object):
     RIGHT = 2
     DOWN = 3
 
-    @staticmethod
-    def iterate():
-        for i in xrange(4):
-            yield i
-
 
 class Slot(QtGui.QGraphicsItem):
     '''Input/Output slot graphic for a Node GraphicsItem.
